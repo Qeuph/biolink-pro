@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, LogOut, LogIn, UserPlus, User } from 'lucide-react';
+import { auth } from '../lib/firebase'; // IMPORT AUTH
 import { UserContext } from '../App';
 
 export default function Navbar() {
@@ -18,6 +19,7 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-900 px-4 py-3">
       <div className="max-w-3xl mx-auto flex justify-between items-center gap-4">
+        
         {/* Logo */}
         <div onClick={() => navigate('/')} className="font-black text-xl cursor-pointer flex-shrink-0">
           Biolink<span className="text-indigo-500">.</span>
@@ -52,7 +54,8 @@ export default function Navbar() {
               <button onClick={() => navigate(`/${userData.username}`)} className="flex items-center gap-2 text-zinc-400 hover:text-white text-sm font-medium transition-colors">
                 <User size={16} /> Profile
               </button>
-              <button onClick={() => navigate('/auth')} className="text-zinc-400 hover:text-red-500 transition-colors">
+              {/* FIXED LOGOUT BUTTON BELOW */}
+              <button onClick={() => auth.signOut()} className="flex items-center gap-2 text-zinc-400 hover:text-red-500 transition-colors">
                 <LogOut size={18} />
               </button>
             </>
