@@ -17,3 +17,34 @@ A modern, production-ready biolink service for managing digital identities and s
    ```bash
    git clone <repository-url>
    cd biolink-pro-main
+   
+Database Schema
+Users Collection
+javascript
+{
+  email: string,
+  username: string,
+  displayName: string,
+  bio: string,
+  createdAt: timestamp,
+  theme: string,
+  links: array<{title, url, clicks}>,
+  connections: array<{type, value}>,
+  followers: array<userIds>,
+  following: array<userIds>,
+  stats: {
+    views: number,
+    followers: number,
+    following: number,
+    clicks: number
+  }
+}
+Meta Collection
+javascript
+{
+  users: number,
+  viewsToday: number,
+  totalViews: number
+}
+License
+MIT
