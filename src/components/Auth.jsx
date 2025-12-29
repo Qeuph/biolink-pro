@@ -3,7 +3,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswor
 import { auth, db } from '../lib/firebase';
 import { setDoc, doc, serverTimestamp, query, where, getDocs, collection, runTransaction } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Lock, Mail, ShieldCheck } from 'lucide-react';
+import { Loader2, Lock, Mail, ShieldCheck, RefreshCw } from 'lucide-react';
 
 const ALLOWED_DOMAINS = ['gmail.com', 'outlook.com', 'yahoo.com', 'icloud.com', 'proton.me', 'hotmail.com', 'me.com'];
 
@@ -18,16 +18,44 @@ export default function Auth() {
   
   // Turnstile
   const [turnstileToken, setTurnstileToken] = useState(null);
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef(null);
 
   // Load Turnstile Script
   useEffect(() => {
+    // Ensure script is only loaded once
+    if (window.turnstile) {
+      setTurnstileLoaded(true);
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
     script.async = true;
     script.defer = true;
+    script.onload = () => {
+      setTurnstileLoaded(true);
+      // If the widget container exists but token is empty, try to render manually
+      if (turnstileRef.current && !turnstileToken) {
+         window.turnstile.render('#turnstile-container', {
+           sitekey: 'YOUR_TURNSTILE_SITE_KEY',
+           callback: (token) => setTurnstileToken(token),
+         });
+      }
+    };
     document.body.appendChild(script);
   }, []);
+
+  // Reset widget when switching modes (Login <-> Signup)
+  useEffect(() => {
+    if (turnstileLoaded && turnstileRef.current && !isLogin) {
+      turnstileRef.current.innerHTML = '';
+      window.turnstile.render('#turnstile-container', {
+        sitekey: '0x4AAAAAACJnG57IsX5NSqkm',
+        callback: (token) => setTurnstileToken(token),
+      });
+    }
+  }, [isLogin, turnstileLoaded]);
 
   const validateEmail = (email) => {
     const domain = email.split('@')[1]?.toLowerCase();
@@ -168,8 +196,10 @@ export default function Auth() {
           </div>
 
           {!isLogin && (
-             <div className="flex justify-center py-2">
-               <div ref={turnstileRef} className="cf-turnstile" data-sitekey="0x4AAAAAACJnG57IsX5NSqkm" data-callback={(token) => setTurnstileToken(token)}></div>
+             <div className="flex justify-center py-4 min-h-[65px]">
+               {/* Using a specific ID container for better rendering control */}
+               <div id="turnstile-container" ref={turnstileRef} className="cf-turnstile" data-sitekey="0x4AAAAAACJnG57IsX5NSqkm" data-callback={(token) => setTurnstileToken(token)}></div>
+               {!turnstileLoaded && <div className="text-xs text-zinc-500 flex items-center gap-2"><RefreshCw size={10} className="animate-spin"/> Loading security...</div>}
              </div>
           )}
 
