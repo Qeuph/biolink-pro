@@ -28,7 +28,7 @@ export default function Auth() {
     script.async = true; script.defer = true;
     script.onload = () => {
       setTurnstileLoaded(true);
-      if (turnstileRef.current && !turnstileToken) window.turnstile.render('#turnstile-container', { sitekey: 'YOUR_TURNSTILE_SITE_KEY', callback: (token) => setTurnstileToken(token) });
+      if (turnstileRef.current && !turnstileToken) window.turnstile.render('#turnstile-container', { sitekey: '0x4AAAAAACJnG57IsX5NSqkm', callback: (token) => setTurnstileToken(token) });
     };
     document.body.appendChild(script);
   }, []);
@@ -36,7 +36,7 @@ export default function Auth() {
   useEffect(() => {
     if (turnstileLoaded && turnstileRef.current && !isLogin) {
       turnstileRef.current.innerHTML = '';
-      window.turnstile.render('#turnstile-container', { sitekey: 'YOUR_TURNSTILE_SITE_KEY', callback: (token) => setTurnstileToken(token) });
+      window.turnstile.render('#turnstile-container', { sitekey: '0x4AAAAAACJnG57IsX5NSqkm', callback: (token) => setTurnstileToken(token) });
     }
   }, [isLogin, turnstileLoaded]);
 
