@@ -169,7 +169,7 @@ export default function Auth() {
 
           {!isLogin && (
              <div className="flex justify-center py-2">
-               <div ref={turnstileRef} className="cf-turnstile" data-sitekey="YOUR_TURNSTILE_SITE_KEY" data-callback={(token) => setTurnstileToken(token)}></div>
+               <div ref={turnstileRef} className="cf-turnstile" data-sitekey="0x4AAAAAACJnG57IsX5NSqkm" data-callback={(token) => setTurnstileToken(token)}></div>
              </div>
           )}
 
