@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, runTransaction, query, collection, where, getDocs } from 'firebase/firestore';
 import { UserContext } from '../App';
 import { Edit3, Share2, Youtube, Gamepad2, Github, Twitter, Instagram, Linkedin, Twitch, Globe, Plus, X, Check } from 'lucide-react';
 
-// Icon Mapping
 const iconMap = { youtube: Youtube, psn: Gamepad2, xbox: Gamepad2, discord: Globe, github: Github, twitter: Twitter, instagram: Instagram, linkedin: Linkedin, twitch: Twitch };
 
 export default function Profile() {
@@ -18,34 +17,40 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState({});
 
-  // Fetch Profile
+  // Fetch Profile - FIXED INFINITE LOOP
   useEffect(() => {
     const fetchProfile = async () => {
-      const q = await getDocs(query(collection(db, "users"), where("username", "==", username)));
-      
-      // FIX: Reset loading regardless of result
-      setLoading(false); 
-
-      if (!q.empty) {
-        const data = q.docs[0].data();
-        const id = q.docs[0].id;
-        setProfileData({ id, ...data });
-        setEditForm({ 
+      try {
+        setLoading(true);
+        const q = query(collection(db, "users"), where("username", "==", username));
+        const snap = await getDocs(q);
+        
+        if (!snap.empty) {
+          const data = snap.docs[0].data();
+          const id = snap.docs[0].id;
+          setProfileData({ id, ...data });
+          setEditForm({ 
             displayName: data.displayName, 
             bio: data.bio, 
             links: data.links || [], 
             connections: data.connections || [] 
-        });
-        
-        // Increment View (Fire and forget)
-        try {
-          await updateDoc(doc(db, "users", id), { "stats.views": increment(1) });
-        } catch (e) {
-          console.warn("View update failed (likely permissions or offline):", e);
+          });
+          
+          // Increment View
+          try {
+            await updateDoc(doc(db, "users", id), { "stats.views": increment(1) });
+          } catch (e) {
+            // Silent fail to not break UI
+          }
+        } else {
+          setProfileData(null); // User not found
         }
-      } else {
-        // User not found logic
+      } catch (error) {
+        console.error("Profile fetch error:", error);
         setProfileData(null);
+      } finally {
+        // ALWAYS STOP LOADING
+        setLoading(false);
       }
     };
     fetchProfile();
@@ -55,7 +60,6 @@ export default function Profile() {
     if (!user) return alert('Authentication required.');
     if (user.uid === profileData.id) return;
     
-    // Check Max Following Limit (Client-side + Server-side via Transaction for safety)
     const myRef = doc(db, "users", user.uid);
     const theirRef = doc(db, "users", profileData.id);
 
@@ -65,14 +69,12 @@ export default function Profile() {
         const myData = myDoc.data();
         
         if (myData.following && myData.following.includes(profileData.id)) {
-          // Unfollow
           transaction.update(myRef, { following: arrayRemove(profileData.id), "stats.following": increment(-1) });
           transaction.update(theirRef, { followers: arrayRemove(user.uid), "stats.followers": increment(-1) });
         } else {
-          // Follow
           if ((myData.stats?.following || 0) >= 5000) {
             alert("Maximum following limit reached (5000).");
-            return; // Abort transaction
+            return;
           }
           transaction.update(myRef, { following: arrayUnion(profileData.id), "stats.following": increment(1) });
           transaction.update(theirRef, { followers: arrayUnion(user.uid), "stats.followers": increment(1) });
@@ -103,8 +105,6 @@ export default function Profile() {
   return (
     <div className="min-h-screen pt-10 pb-20 px-4">
       <div className="max-w-xl mx-auto">
-        
-        {/* Header */}
         <div className="flex items-start justify-between mb-8">
           <div className="flex gap-6">
             <div className="w-28 h-28 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-[2px] shadow-2xl shadow-indigo-500/20">
@@ -116,7 +116,6 @@ export default function Profile() {
               <h1 className="text-3xl font-black text-white tracking-tight">{profileData.displayName}</h1>
               <p className="text-indigo-400 text-sm font-mono mb-3">@{profileData.username}</p>
               <p className="text-zinc-400 text-sm max-w-xs leading-relaxed font-light">{profileData.bio}</p>
-              
               <div className="flex gap-6 mt-5 text-sm">
                 <span className="text-white font-bold">{profileData.stats?.followers || 0} <span className="text-zinc-600 font-normal">Followers</span></span>
                 <span className="text-white font-bold">{profileData.stats?.views || 0} <span className="text-zinc-600 font-normal">Views</span></span>
@@ -126,20 +125,17 @@ export default function Profile() {
               </div>
             </div>
           </div>
-          
           {user && user.uid === profileData.id && (
             <button onClick={() => setIsEditing(!isEditing)} className={`p-3 rounded-xl transition-all ${isEditing ? 'bg-green-500 text-white' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
               {isEditing ? <Check size={20}/> : <Edit3 size={20} />}
             </button>
           )}
         </div>
-
         {isEditing ? (
           <EditMode profileData={profileData} editForm={editForm} setEditForm={setEditForm} save={saveProfile} cancel={() => setIsEditing(false)} />
         ) : (
           <ViewMode profileData={profileData} handleFollow={handleFollow} isOwner={user?.uid === profileData.id} currentUser={user} userData={userData} />
         )}
-
       </div>
     </div>
   );
@@ -175,18 +171,15 @@ function EditMode({ profileData, editForm, setEditForm, save, cancel }) {
         <textarea className="w-full bg-black border border-zinc-800 p-3 rounded-lg text-white h-24 focus:border-indigo-500 outline-none resize-none" onChange={e => setEditForm({...editForm, bio: e.target.value})}>{editForm.bio}</textarea>
       </div>
 
-      {/* LINKS (Content) */}
       <div className="space-y-4 bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2"><Share2 size={14}/> Linked Content</h3>
         </div>
-        
         <div className="flex gap-2">
           <input className="flex-1 bg-black border border-zinc-800 p-3 rounded-lg text-white text-sm focus:border-indigo-500 outline-none" placeholder="Title" value={newLink.title} onChange={e => setNewLink({...newLink, title: e.target.value})} />
           <input className="flex-1 bg-black border border-zinc-800 p-3 rounded-lg text-white text-sm focus:border-indigo-500 outline-none" placeholder="URL" value={newLink.url} onChange={e => setNewLink({...newLink, url: e.target.value})} />
           <button onClick={addLink} className="bg-indigo-600 text-white px-4 rounded-lg hover:bg-indigo-500 transition-colors"><Plus size={18}/></button>
         </div>
-        
         <div className="space-y-2">
           {editForm.links?.map((l, i) => (
             <div key={i} className="flex justify-between items-center bg-black p-3 rounded-lg border border-zinc-800">
@@ -197,7 +190,6 @@ function EditMode({ profileData, editForm, setEditForm, save, cancel }) {
         </div>
       </div>
 
-      {/* CONNECTIONS (Badges) */}
       <div className="space-y-4 bg-zinc-900 p-6 rounded-2xl border border-zinc-800">
         <h3 className="text-xs font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2"><Globe size={14}/> Connected Accounts</h3>
         <div className="flex gap-2">
@@ -235,13 +227,9 @@ function EditMode({ profileData, editForm, setEditForm, save, cancel }) {
 
 // --- VIEW MODE ---
 function ViewMode({ profileData, handleFollow, isOwner, currentUser, userData }) {
-  // Determine Follow State
   const isFollowing = userData && userData.following && userData.following.includes(profileData.id);
-  
   return (
     <div className="space-y-8 animate-in fade-in">
-      
-      {/* Connections (Badges) */}
       {profileData.connections && profileData.connections.length > 0 && (
         <div className="flex flex-wrap gap-3 justify-center">
           {profileData.connections.map((c, i) => {
@@ -254,8 +242,6 @@ function ViewMode({ profileData, handleFollow, isOwner, currentUser, userData })
           })}
         </div>
       )}
-
-      {/* Actions */}
       <div className="flex gap-3">
         {!isOwner && (
           <button onClick={handleFollow} className={`flex-1 font-bold py-3 rounded-xl transition-all ${isFollowing ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/20'}`}>
@@ -264,8 +250,6 @@ function ViewMode({ profileData, handleFollow, isOwner, currentUser, userData })
         )}
         <button className="p-3 bg-zinc-900 border border-zinc-800 rounded-xl hover:bg-zinc-800 text-white"><Share2 size={20} /></button>
       </div>
-
-      {/* Linked Content */}
       <div className="space-y-3">
         {profileData.links?.map((link, i) => (
           <a 
@@ -281,7 +265,6 @@ function ViewMode({ profileData, handleFollow, isOwner, currentUser, userData })
           <div className="text-center text-zinc-600 py-10 font-mono text-xs">[NO_LINKS_DETECTED]</div>
         )}
       </div>
-
     </div>
   );
 }
