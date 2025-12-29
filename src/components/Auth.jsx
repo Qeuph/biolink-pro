@@ -21,24 +21,20 @@ export default function Auth() {
   const [turnstileLoaded, setTurnstileLoaded] = useState(false);
   const turnstileRef = useRef(null);
 
-  // Load Turnstile Script
   useEffect(() => {
-    // Ensure script is only loaded once
     if (window.turnstile) {
       setTurnstileLoaded(true);
       return;
     }
-
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
     script.async = true;
     script.defer = true;
     script.onload = () => {
       setTurnstileLoaded(true);
-      // If the widget container exists but token is empty, try to render manually
       if (turnstileRef.current && !turnstileToken) {
          window.turnstile.render('#turnstile-container', {
-           sitekey: 'YOUR_TURNSTILE_SITE_KEY',
+           sitekey: 'YOUR_TURNSTILE_SITE_KEY', // PASTE YOUR KEY HERE
            callback: (token) => setTurnstileToken(token),
          });
       }
@@ -46,12 +42,11 @@ export default function Auth() {
     document.body.appendChild(script);
   }, []);
 
-  // Reset widget when switching modes (Login <-> Signup)
   useEffect(() => {
     if (turnstileLoaded && turnstileRef.current && !isLogin) {
       turnstileRef.current.innerHTML = '';
       window.turnstile.render('#turnstile-container', {
-        sitekey: '0x4AAAAAACJnG57IsX5NSqkm',
+        sitekey: 'YOUR_TURNSTILE_SITE_KEY', // PASTE YOUR KEY HERE
         callback: (token) => setTurnstileToken(token),
       });
     }
@@ -62,6 +57,12 @@ export default function Auth() {
     return ALLOWED_DOMAINS.includes(domain);
   };
 
+  // STRICT VALIDATION: No spaces, only letters/numbers/underscores
+  const validateUsername = (name) => {
+    const regex = /^[a-zA-Z0-9_]+$/;
+    return regex.test(name);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
@@ -69,6 +70,13 @@ export default function Auth() {
 
     if (!validateEmail(email)) {
       setMessage('Only reputable email providers (Gmail, Outlook, etc.) are allowed.');
+      setLoading(false);
+      return;
+    }
+
+    // NEW VALIDATION CHECK
+    if (!isLogin && !validateUsername(username)) {
+      setMessage('Username cannot have spaces or special characters. Use only letters, numbers, and underscores.');
       setLoading(false);
       return;
     }
@@ -84,7 +92,6 @@ export default function Auth() {
         await signInWithEmailAndPassword(auth, email, password);
         navigate('/');
       } else {
-        // 1. Check Username Uniqueness
         const q = query(collection(db, "users"), where("username", "==", username));
         const snap = await getDocs(q);
         if (!snap.empty) {
@@ -93,10 +100,8 @@ export default function Auth() {
           return;
         }
 
-        // 2. Create Auth User
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         
-        // 3. Create DB User + Update Global Count
         await runTransaction(db, async (transaction) => {
           const userRef = doc(db, "users", cred.user.uid);
           const globalRef = doc(db, "meta", "global");
@@ -142,13 +147,9 @@ export default function Auth() {
     <div className="flex items-center justify-center min-h-[calc(100vh-60px)] p-4">
       <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-        
-        <div className="flex justify-center mb-6 text-indigo-400">
-           <ShieldCheck size={48} />
-        </div>
-        
+        <div className="flex justify-center mb-6 text-indigo-400"><ShieldCheck size={48} /></div>
         <h1 className="text-2xl font-bold mb-2 text-center">{isLogin ? 'Identity Verification' : 'Initialize Account'}</h1>
-        <p className="text-center text-zinc-500 text-sm mb-8">Secure access to the Biolink network.</p>
+        <p className="text-center text-zinc-500 text-sm mb-8">Secure access to Biolink network.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
@@ -157,7 +158,7 @@ export default function Auth() {
               <input 
                 type="text" 
                 value={username}
-                onChange={e => setUsername(e.target.value)}
+                onChange={e => setUsername(e.target.value.replace(/\s/g, ''))} // Auto-remove spaces on type
                 className="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2.5 px-4 text-sm focus:ring-1 focus:ring-indigo-500 outline-none"
                 placeholder="yourhandle"
                 required
@@ -197,8 +198,7 @@ export default function Auth() {
 
           {!isLogin && (
              <div className="flex justify-center py-4 min-h-[65px]">
-               {/* Using a specific ID container for better rendering control */}
-               <div id="turnstile-container" ref={turnstileRef} className="cf-turnstile" data-sitekey="0x4AAAAAACJnG57IsX5NSqkm" data-callback={(token) => setTurnstileToken(token)}></div>
+               <div id="turnstile-container" ref={turnstileRef} className="cf-turnstile" data-sitekey="YOUR_TURNSTILE_SITE_KEY" data-callback={(token) => setTurnstileToken(token)}></div>
                {!turnstileLoaded && <div className="text-xs text-zinc-500 flex items-center gap-2"><RefreshCw size={10} className="animate-spin"/> Loading security...</div>}
              </div>
           )}
