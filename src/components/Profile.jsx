@@ -23,6 +23,9 @@ export default function Profile() {
     const fetchProfile = async () => {
       const q = await getDocs(query(collection(db, "users"), where("username", "==", username)));
       
+      // FIX: Reset loading regardless of result
+      setLoading(false); 
+
       if (!q.empty) {
         const data = q.docs[0].data();
         const id = q.docs[0].id;
@@ -35,9 +38,15 @@ export default function Profile() {
         });
         
         // Increment View (Fire and forget)
-        updateDoc(doc(db, "users", id), { "stats.views": increment(1) });
+        try {
+          await updateDoc(doc(db, "users", id), { "stats.views": increment(1) });
+        } catch (e) {
+          console.warn("View update failed (likely permissions or offline):", e);
+        }
+      } else {
+        // User not found logic
+        setProfileData(null);
       }
-      setLoading(false);
     };
     fetchProfile();
   }, [username]);
