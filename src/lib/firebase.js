@@ -4,13 +4,12 @@ import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDIuvZF7X3fTKn6QjCFjneVWe4em9dJLGM",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "biolink-pro-c6e8e.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "biolink-pro-c6e8e",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "biolink-pro-c6e8e.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "865275605116",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:865275605116:web:60698d09ca8c676f1899f9",
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-CY7P1TLMTT"
+  apiKey: "AIzaSyBDWC-5Hgn1WfBuwQLEKjZxYiY46EfNlKY",
+  authDomain: "biolink-pro-362b4.firebaseapp.com",
+  projectId: "biolink-pro-362b4",
+  storageBucket: "biolink-pro-362b4.firebasestorage.app",
+  messagingSenderId: "211687101012",
+  appId: "1:211687101012:web:3ccc43c381a1c15af653c1"
 };
 
 // Initialize Firebase
